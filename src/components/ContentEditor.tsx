@@ -1,3 +1,4 @@
+import { Loader as Loader2 } from 'lucide-react';
 import type { Channel, Finding, Severity } from '@/types';
 import { CHANNELS } from '@/data/demoBrand';
 
@@ -11,8 +12,10 @@ interface ContentEditorProps {
   text: string;
   channel: Channel;
   readOnly: boolean;
+  saving: boolean;
   findings: Finding[];
   onTextChange: (text: string) => void;
+  onTextBlur: (text: string) => void;
   onChannelChange: (channel: Channel) => void;
 }
 
@@ -30,24 +33,36 @@ function HighlightedPreview({ text, findings }: { text: string; findings: Findin
     cursor = finding.end;
   }
   parts.push(text.slice(cursor));
-  return <p className="whitespace-pre-wrap text-[15px] leading-[1.5] text-stone-800">{parts}</p>;
+  return <p className="whitespace-pre-wrap text-[15px] leading-[1.6] text-stone-800">{parts}</p>;
+}
+
+function wordCount(text: string): number {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).length;
 }
 
 export default function ContentEditor({
   text,
   channel,
   readOnly,
+  saving,
   findings,
   onTextChange,
+  onTextBlur,
   onChannelChange,
 }: ContentEditorProps) {
+  const words = wordCount(text);
+
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <section className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-5">
+      <section className="rounded-xl border border-stone-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-stone-100 px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold leading-[1.2] text-stone-900">Your draft</h2>
-            <p className="text-sm text-stone-500">{text.length} characters</p>
+            <h2 className="text-sm font-semibold leading-tight text-stone-900">Draft copy</h2>
+            <p className="mt-0.5 text-xs text-stone-500">
+              {text.length.toLocaleString()} characters · {words} {words === 1 ? 'word' : 'words'}
+            </p>
           </div>
           <label className="flex items-center gap-2 text-sm text-stone-600">
             Channel
@@ -65,31 +80,54 @@ export default function ContentEditor({
             </select>
           </label>
         </div>
-        <label htmlFor="draft-text" className="sr-only">
-          Draft copy
-        </label>
-        <textarea
-          id="draft-text"
-          value={text}
-          readOnly={readOnly}
-          onChange={(event) => onTextChange(event.target.value)}
-          rows={9}
-          className="w-full resize-y rounded-lg border border-stone-300 bg-white p-4 text-[15px] leading-[1.5] text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 read-only:bg-stone-50"
-          placeholder="Paste or write your copy here."
-        />
-        {readOnly && (
-          <p className="mt-2 text-sm text-stone-500">This revision is locked while it is being reviewed.</p>
-        )}
+        <div className="p-5">
+          <label htmlFor="draft-text" className="sr-only">
+            Draft copy
+          </label>
+          <textarea
+            id="draft-text"
+            value={text}
+            readOnly={readOnly}
+            onChange={(event) => onTextChange(event.target.value)}
+            onBlur={(event) => onTextBlur(event.target.value)}
+            rows={10}
+            className="w-full resize-y rounded-lg border border-stone-300 bg-white p-4 text-[15px] leading-[1.6] text-stone-900 placeholder:text-stone-400 focus:border-emerald-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 read-only:bg-stone-50 read-only:text-stone-700"
+            placeholder="Paste or write your copy here. Findings will appear on the right as you type."
+          />
+          <div className="mt-2 flex items-center justify-between">
+            {readOnly ? (
+              <p className="text-xs text-stone-500">This revision is locked while it is being reviewed.</p>
+            ) : saving ? (
+              <p className="flex items-center gap-1.5 text-xs text-stone-400">
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                Saving…
+              </p>
+            ) : (
+              <p className="text-xs text-stone-400">Changes save automatically.</p>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-1 text-base font-semibold leading-[1.2] text-stone-900">Highlighted view</h2>
-        <p className="mb-4 text-sm text-stone-500">Text that needs attention is marked by how serious it is.</p>
-        <div className="rounded-lg bg-stone-50 p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold leading-tight text-stone-900">Highlighted preview</h2>
+            <p className="mt-0.5 text-xs text-stone-500">Flagged text is coloured by severity.</p>
+          </div>
+          {findings.length > 0 && (
+            <div className="flex items-center gap-2 text-[10px] font-medium">
+              <span className="flex items-center gap-1 text-rose-700"><span className="h-2 w-2 rounded bg-rose-300" /> High</span>
+              <span className="flex items-center gap-1 text-amber-700"><span className="h-2 w-2 rounded bg-amber-300" /> Medium</span>
+              <span className="flex items-center gap-1 text-stone-600"><span className="h-2 w-2 rounded bg-stone-300" /> Low</span>
+            </div>
+          )}
+        </div>
+        <div className="rounded-lg bg-stone-50 p-4 min-h-[80px]">
           {text.trim() ? (
             <HighlightedPreview text={text} findings={findings} />
           ) : (
-            <p className="text-sm text-stone-500">Nothing to show yet.</p>
+            <p className="text-sm text-stone-400">Nothing to show yet. Start typing above.</p>
           )}
         </div>
       </section>
